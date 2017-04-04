@@ -1,6 +1,8 @@
 This project demonstrates experiments in the paper http://www.vldb.org/pvldb/vol9/p1089-tran.pdf
 
 The main class is src/mtree/tests/MTTest.java
+
+The missing library jcfs can be found at https://jcifs.samba.org/src/jcifs-1.1.11.jar 
 Sample parameters to run the built jar file:    
 
 --algorithm microCluster_new --R 0.28 --W 100000 --k 50 --slide 5000 --datafile C:\Users\Luan\MTree\gaussian.txt 
