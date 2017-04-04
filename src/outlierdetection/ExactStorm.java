@@ -103,9 +103,9 @@ public class ExactStorm {
             ArrayList<DataStormObject> queryResult = new ArrayList<>();
             for (MTreeClass.ResultItem ri : query) {
                 queryResult.add((DataStormObject) ri.data);
-                if (ri.distance == 0) {
-                    ob.values[0] += (new Random()).nextDouble() / 1000000;
-                }
+//                if (ri.distance == 0) {
+//                    ob.values[0] += (new Random()).nextDouble() / 1000000;
+//                }
             }
 
             Collections.sort(queryResult, new DataStormComparator());
@@ -275,6 +275,7 @@ class DataStormObject extends Data {
     public int count_after;
     public ArrayList<DataStormObject> nn_before;
 
+    public int count_before;
     public double frac_before = 0;
 
     public DataStormObject(Data d) {

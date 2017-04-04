@@ -122,7 +122,19 @@ public class AbstractC {
         });
 
         MesureMemoryThread.timeForNewSlide += Utils.getCPUTime() - startTime;
+         computeAverageNeighbors();
+         System.out.println("Outlier rate = "+outliers.size() *1.0 / Constants.W);
         return outliers;
+    }
+    
+    
+    public void computeAverageNeighbors(){
+        double avg = 0;
+        for(DataAbtractCObject data: dataList){
+            if(data.lt_cnt.size() >0)
+            avg += data.lt_cnt.get(0);
+        }
+        System.out.println("Avg #neighbors = "+ (avg/dataList.size()));
     }
 
 };

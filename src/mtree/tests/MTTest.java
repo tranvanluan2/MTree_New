@@ -19,6 +19,7 @@ import mtree.utils.Constants;
 import mtree.utils.Utils;
 import outlierdetection.DataLUEObject;
 import outlierdetection.IMCOD;
+import outlierdetection.MCOD_MESI;
 import outlierdetection.MCOD_MESI_Safe;
 import outlierdetection.MCOD_Safe_Version;
 import outlierdetection.MCOD_Safe_Wait;
@@ -26,6 +27,7 @@ import outlierdetection.MESIWithHash;
 import outlierdetection.MesiAndCluster;
 import outlierdetection.MicroCluster_New;
 import outlierdetection.MicroCluster_NewVersion;
+import outlierdetection.MicroCluster_NewVersion.MCData;
 
 public class MTTest {
 
@@ -36,6 +38,7 @@ public class MTTest {
     public static HashSet<Integer> idOutliers = new HashSet<>();
 
     public static String algorithm;
+    public static int numberWindows = 0;
 
     public static void main(String[] args) {
 
@@ -52,7 +55,7 @@ public class MTTest {
 //        Stream s = Stream.getInstance("Trade");
 
         ExactStorm estorm = new ExactStorm();
-        ApproxStorm apStorm = new ApproxStorm(1);
+        ApproxStorm apStorm = new ApproxStorm(0.1);
         AbstractC abstractC = new AbstractC();
         Lazy_Update_Event lue = new Lazy_Update_Event();
         Direct_Update_Event due = new Direct_Update_Event();
@@ -66,7 +69,8 @@ public class MTTest {
         MCOD_Safe_Version mcod_safe = new MCOD_Safe_Version();
         MCOD_MESI_Safe mcod_mesi_safe = new MCOD_MESI_Safe();
         MCOD_Safe_Wait mcod_safe_wait = new MCOD_Safe_Wait();
-        int numberWindows = 0;
+        MCOD_MESI mcod_mesi = new MCOD_MESI();
+
         double totalTime = 0;
         while (!stop) {
 
@@ -95,11 +99,20 @@ public class MTTest {
                     double elapsedTimeInSec = (Utils.getCPUTime() - start) * 1.0 / 1000000000;
 
                     totalTime += elapsedTimeInSec;
-                    outliers.stream().forEach((outlier) -> {
-                        idOutliers.add(outlier.arrivalTime);
-                    });
+//                    outliers.stream().forEach((outlier) -> {
+//                        idOutliers.add(outlier.arrivalTime);
+//                    });
 
                     break;
+                case "compareApproxExact":
+//                    ArrayList<MCData> exactResult = mcod_new.detectOutlier(incomingData, currentTime, Constants.W, Constants.slide);
+//                    ArrayList<Data> approxResult = apStorm.detectOutlier(incomingData, currentTime, Constants.W, Constants.slide);
+//                    if (numberWindows > 1) {
+//                        computePrecesionRecall(exactResult, approxResult);
+//                        System.out.println("Precision = " + precision);
+//                        System.out.println("Recall = " + recall);
+//                    }
+
                 case "mesiAndCluster":
                     ArrayList<Data> outliers100 = mac.detectOutlier(incomingData, currentTime, Constants.W, Constants.slide);
                     elapsedTimeInSec = (Utils.getCPUTime() - start) * 1.0 / 1000000000;
@@ -120,7 +133,7 @@ public class MTTest {
 //                    });
                     break;
                 case "mcod_new":
-                    ArrayList<Data> outliers300 = mcod_new.detectOutlier(incomingData, currentTime, Constants.W, Constants.slide);
+                    ArrayList<MCData> outliers300 = mcod_new.detectOutlier(incomingData, currentTime, Constants.W, Constants.slide);
                     elapsedTimeInSec = (Utils.getCPUTime() - start) * 1.0 / 1000000000;
 
                     totalTime += elapsedTimeInSec;
@@ -128,9 +141,18 @@ public class MTTest {
                         idOutliers.add(outlier.arrivalTime);
                     });
                     break;
+                case "mcod_mesi":
+                    ArrayList<Data> outliers123 = mcod_mesi.detectOutlier(incomingData, currentTime, Constants.W, Constants.slide);
+                    elapsedTimeInSec = (Utils.getCPUTime() - start) * 1.0 / 1000000000;
+
+                    totalTime += elapsedTimeInSec;
+                    outliers123.stream().forEach((outlier) -> {
+                        idOutliers.add(outlier.arrivalTime);
+                    });
+                    break;
 
                 case "mcod_safe":
-                    ArrayList<Data> outliers400 = mcod_safe.detectOutlier(incomingData, currentTime, Constants.W, Constants.slide);
+                    ArrayList<MCOD_Safe_Version.MCData> outliers400 = mcod_safe.detectOutlier(incomingData, currentTime, Constants.W, Constants.slide);
                     elapsedTimeInSec = (Utils.getCPUTime() - start) * 1.0 / 1000000000;
 
                     totalTime += elapsedTimeInSec;
@@ -148,13 +170,13 @@ public class MTTest {
                     });
                     break;
                 case "mcod_mesi_safe":
-                    ArrayList<Data> outliers500 = mcod_mesi_safe.detectOutlier(incomingData, currentTime, Constants.W, Constants.slide);
+                    ArrayList<MCOD_MESI_Safe.MCData> outliers500 = mcod_mesi_safe.detectOutlier(incomingData, currentTime, Constants.W, Constants.slide);
                     elapsedTimeInSec = (Utils.getCPUTime() - start) * 1.0 / 1000000000;
 
                     totalTime += elapsedTimeInSec;
-//                    outliers500.stream().forEach((outlier) -> {
-//                        idOutliers.add(outlier.arrivalTime);
-//                    });
+                    outliers500.stream().forEach((outlier) -> {
+                        idOutliers.add(outlier.arrivalTime);
+                    });
                     break;
                 case "approximateStorm":
                     ArrayList<Data> outliers2 = apStorm.detectOutlier(incomingData, currentTime, Constants.W,
@@ -215,10 +237,10 @@ public class MTTest {
                     elapsedTimeInSec = (Utils.getCPUTime() - start) * 1.0 / 1000000000;
 
                     totalTime += elapsedTimeInSec;
-                    outliers9.stream().forEach((outlier) -> {
-                        idOutliers.add(outlier.arrivalTime);
-
-                    });
+//                    outliers9.stream().forEach((outlier) -> {
+//                        idOutliers.add(outlier.arrivalTime);
+//
+//                    });
 
 //                    ArrayList<Data> outliers10 = estorm.detectOutlier(incomingData, currentTime, Constants.W,
 //                            Constants.slide);
@@ -237,9 +259,9 @@ public class MTTest {
                     elapsedTimeInSec = (Utils.getCPUTime() - start) * 1.0 / 1000000000;
 
                     totalTime += elapsedTimeInSec;
-                    outliers7.stream().forEach((outlier) -> {
-                        idOutliers.add(outlier.arrivalTime);
-                    });
+//                    outliers7.stream().forEach((outlier) -> {
+//                        idOutliers.add(outlier.arrivalTime);
+//                    });
                     break;
                 case "mesiWithHash":
                     HashSet<Vector> outliers8 = mesiWithHash.detectOutlier(incomingData, currentTime, Constants.W,
@@ -397,5 +419,61 @@ public class MTTest {
         } catch (IOException e) {
         }
 
+    }
+
+    public static double precision = 0.0;
+    public static double recall = 0.0;
+
+    public static int countPrecisionRecalll = 0;
+    private static void computePrecesionRecall(ArrayList<Data> exactResult, ArrayList<Data> approxResult) {
+//        HashSet<Integer> exact = new HashSet<>();
+//        exactResult.stream().forEach((d) -> {
+//            exact.add(d.arrivalTime);
+//        });
+//
+//        HashSet<Integer> approx = new HashSet<>();
+//        approxResult.stream().forEach((d) -> {
+//            approx.add(d.arrivalTime);
+//        });
+        //compute precision
+        countPrecisionRecalll++;
+        int correctDetect = 0;
+        for (Data d : approxResult) {
+            correctDetect = exactResult.stream().filter((d2) -> (d2.arrivalTime == d.arrivalTime)).map((_item) -> 1).reduce(correctDetect, Integer::sum);
+        }
+        if (!exactResult.isEmpty()) {
+            double newPrecision = correctDetect * 1.0 / exactResult.size();
+            //update precision
+            if (newPrecision != Double.NaN) {
+                precision = (precision * (countPrecisionRecalll - 1) + newPrecision) / countPrecisionRecalll;
+            }
+        } else if (approxResult.isEmpty()) {
+            double newPrecision = 1;
+            //update precision
+            if (newPrecision != Double.NaN) {
+                precision = (precision * (countPrecisionRecalll - 1) + newPrecision) / countPrecisionRecalll;
+            }
+        } else {
+            double newPrecision = 1;
+            //update precision
+            if (newPrecision != Double.NaN) {
+                precision = (precision * (countPrecisionRecalll - 1) + newPrecision) / countPrecisionRecalll;
+            }
+        }
+        if (!approxResult.isEmpty()) {
+            //compute recall 
+            double newRecall = correctDetect * 1.0 / approxResult.size();
+            //update recall 
+            if (newRecall != Double.NaN) {
+                recall = (recall * (countPrecisionRecalll - 1) + newRecall) / countPrecisionRecalll;
+            }
+        } else {
+            //compute recall 
+            double newRecall = 1;
+            //update recall 
+            if (newRecall != Double.NaN) {
+                recall = (recall * (countPrecisionRecalll - 1) + newRecall) / countPrecisionRecalll;
+            }
+        }
     }
 }

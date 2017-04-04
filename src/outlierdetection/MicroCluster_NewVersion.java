@@ -6,6 +6,7 @@
 package outlierdetection;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -13,6 +14,7 @@ import java.util.HashSet;
 import java.util.PriorityQueue;
 import mtree.tests.Data;
 import mtree.utils.Constants;
+import mtree.utils.Utils;
 
 /**
  *
@@ -33,10 +35,13 @@ public class MicroCluster_NewVersion {
 
     public static int numberWindows = 0;
 
+    public static int numDistance = 0;
+
     private ArrayList<Micro_Cluster> findListClusterToAdd(MCData d, int n) {
         ArrayList<Micro_Cluster> result = new ArrayList<>();
         for (Micro_Cluster cluster : microClusters) {
             double dis = DistanceFunction.euclideanDistance(d, cluster.center);
+            numDistance++;
             if (dis <= Constants.R / 2) {
                 result.add(cluster);
                 if (result.size() >= n) {
@@ -49,21 +54,39 @@ public class MicroCluster_NewVersion {
 
     private Micro_Cluster findClusterToAdd(MCData d) {
         Micro_Cluster result = null;
-        int bestScore = -1;
+        int bestScore = Integer.MIN_VALUE;
         double bestDistance = Double.MAX_VALUE;
+        int minMembers = Integer.MAX_VALUE;
+        OUTER:
         for (Micro_Cluster cluster : microClusters) {
             double dis = DistanceFunction.euclideanDistance(d, cluster.center);
+            numDistance++;
             if (dis <= Constants.R / 2) {
-
-                if (Constants.weightedCluster == 2) {
-                    if (bestDistance > dis) {
-                        bestDistance = dis;
+                switch (Constants.weightedCluster) {
+                    case 2:
+                        if (bestDistance > dis) {
+                            bestDistance = dis;
+                            result = cluster;
+                        }
+                        break;
+                    case 1:
                         result = cluster;
-                    }
-                } else {
-                    if (cluster.score > bestScore) {
-                        result = cluster;
-                    }
+                        break OUTER;
+                    case 3:
+                        if (cluster.computeScore() > bestScore) {
+                            result = cluster;
+                        }
+                        break;
+                    case 5:
+                        if (cluster.computeScore() > bestScore) {
+                            result = cluster;
+                        }
+                        break;
+                    default:
+                        if (cluster.computeScore() > bestScore) {
+                            result = cluster;
+                        }
+                        break;
                 }
             }
         }
@@ -77,10 +100,12 @@ public class MicroCluster_NewVersion {
 
         microClusters.stream().filter((cluster) -> (DistanceFunction.euclideanDistance(d, cluster.center)
                 <= 3 * Constants.R / 2)).forEach((cluster) -> {
-                    HashSet<MCData> associatePoints = associates.get(cluster);
-                    associatePoints.add(d);
-                    //   associates.put(cluster, associatePoints);
-                });
+
+            HashSet<MCData> associatePoints = associates.get(cluster);
+            associatePoints.add(d);
+            //   associates.put(cluster, associatePoints);
+        });
+        numDistance += microClusters.size();
 
         HashSet<MCData> neighborInPD = findNeighborInPD(d);
         neighbors.addAll(neighborInPD);
@@ -97,6 +122,7 @@ public class MicroCluster_NewVersion {
             });
         }
         if (d.isUnsafeInlier()) {
+            //d.updateEarliestNeighbor();
             event_queue.add(d);
         }
 
@@ -119,6 +145,7 @@ public class MicroCluster_NewVersion {
                     result.add(d2);
 
                 });
+                numDistance += PDList.size();
 
                 break;
             case 1:
@@ -127,6 +154,7 @@ public class MicroCluster_NewVersion {
                         result.add(d2);
                     }
                 });
+                numDistance += PDList.size();
                 //find in clusters 
                 //find points in clusters that in range R
                 microClusters.stream().filter((cluster) -> DistanceFunction.euclideanDistance(d, cluster.center) <= Constants.R).forEach((cluster) -> {
@@ -136,6 +164,7 @@ public class MicroCluster_NewVersion {
                         }
                     });
                 });
+                numDistance += microClusters.size();
 
                 break;
         }
@@ -169,6 +198,7 @@ public class MicroCluster_NewVersion {
     }
 
     private boolean isNeighbor(MCData d, MCData d2) {
+        numDistance++;
         return DistanceFunction.euclideanDistance(d, d2) <= Constants.R
                 && !d.expired() && !d2.expired() && d.arrivalTime != d2.arrivalTime;
     }
@@ -197,7 +227,7 @@ public class MicroCluster_NewVersion {
                 }
                 if (d.clusters.isEmpty()) {
                     d.precedingNeighbors.add(d2);
-                    // d.updateEarliestNeighbor();
+                    d.updateEarliestNeighbor();
                 }
             }
 
@@ -232,13 +262,24 @@ public class MicroCluster_NewVersion {
             pointsInPD.add(d.arrivalTime);
         });
         totalPointsInCluster += points.size();
+        avgPointsInClusters = (avgPointsInClusters * (numberWindows - 1) + points.size()) * 1.0 / numberWindows;
+
         totalCluster += microClusters.size();
         System.out.println("Total Number of cluster = " + totalCluster);
+        avgNumberOfClusters = totalCluster * 1.0 / numberWindows;
+        System.out.println("Avg # clustes = " + avgNumberOfClusters);
         //  System.out.println("Number of points in cluster: " + points.size());
         //   System.out.println("Number of points in PD: " + pointsInPD.size());
         System.out.println("Number of dispersed cluster = " + numDisperseCluster);
         System.out.println("Number of recompuatation = " + numberOfRecomputation);
         System.out.println("Total Number of points in cluster = " + totalPointsInCluster);
+        System.out.println("avg Number of points in cluster = " + avgPointsInClusters);
+        System.out.println("Time for expired data = " + avgTimeForProcessExpiredData);
+        System.out.println("Time for new data = " + avgTimeForProcessNewData);
+        System.out.println("Time for adding to clusters = " + avgTimeForAddingToCluster);
+        System.out.println("Time for adding to PD = " + avgTimeForAddingToPD);
+        System.out.println("Time for forming clusters = " + avgTimeForFormingCluster);
+        System.out.println("#distance computation = " + numDistance);
     }
 
     private HashSet<MCData> findNeighborInCluster(MCData d) {
@@ -250,6 +291,7 @@ public class MicroCluster_NewVersion {
                     result.add(d2);
                 }
             });
+            numDistance += cluster.members.size();
         });
         return result;
     }
@@ -258,11 +300,12 @@ public class MicroCluster_NewVersion {
         HashSet<MCData> result = new HashSet<>();
         PDList.stream().filter((d2) -> (DistanceFunction.euclideanDistance(d, d2)
                 <= Constants.R * 3 / 2)).forEach((d2) -> {
-                    if (!d2.expired()) {
-                        result.add(d2);
-                    }
+            if (!d2.expired()) {
+                result.add(d2);
+            }
 
-                });
+        });
+        numDistance += PDList.size();
         return result;
     }
 
@@ -406,15 +449,47 @@ public class MicroCluster_NewVersion {
         }
     }
 
+    private void computeAverageNeighbor(ArrayList<MCData> result) {
+        int total = 0;
+        for (Data d2 : result) {
+            MCData d = (MCData) d2;
+            total += d.numSucceedingNeighbors + d.precedingNeighbors.size();
+        }
+        System.out.println("Avg neighbors = " + total * 1.0 / result.size());
+    }
+
+    private void computeNumberOfSafeInlier() {
+
+    }
+
+    public void fingNeighbors(MCData d) {
+
+        HashSet<MCData> neighbors = findNeighborInPD(d);
+        HashSet<MCData> neighborsInCluster = findNeighborInCluster(d);
+        neighbors.addAll(neighborsInCluster);
+        for (MCData d2 : neighbors) {
+            if (d2.getSlideIndex() >= d.getSlideIndex()) {
+                d.numSucceedingNeighbors++;
+            } else {
+                d.precedingNeighbors.add(d2);
+            }
+        }
+        Collections.sort(d.precedingNeighbors, (new MCDataComparator()));
+        while (d.precedingNeighbors.size() > Constants.k + 1) {
+            d.precedingNeighbors.remove(0);
+        }
+    }
+
     private static class MCDataComparator implements Comparator<MCData> {
 
         @Override
         public int compare(MCData t, MCData t1) {
             if (t.earliestExpireTime > t1.earliestExpireTime) {
                 return 1;
-            } else {
+            } else if(t.earliestExpireTime < t1.earliestExpireTime){
                 return -1;
             }
+            return t.earliestExpireTime - t1.earliestExpireTime;
         }
 
     }
@@ -424,13 +499,19 @@ public class MicroCluster_NewVersion {
         //  if(d.clusters.size()>0) return;
         //find cluster for d 
         if (Constants.type_MCOD < 2) {
+            long start = Utils.getCPUTime();
             Micro_Cluster cluster = findClusterToAdd(d);
 
             if (cluster != null) {
                 //add to cluster
                 cluster.addData(d);
-                return;
 
+            }
+            double elapsedTimeInSec = (Utils.getCPUTime() - start) * 1.0 / 1000000000;
+            timeForAddingToCluster = timeForAddingToCluster + elapsedTimeInSec;
+
+            if (cluster != null) {
+                return;
             }
         } else if (Constants.type_MCOD == 2) {
             ArrayList<Micro_Cluster> clusters = findListClusterToAdd(d, Constants.numClusterToAdd);
@@ -451,47 +532,79 @@ public class MicroCluster_NewVersion {
             }
 
         }
-        HashSet<MCData> neighborsToFormCluster = findNeighborToFormCluster(d);
 
-        if (neighborsToFormCluster.size() >= Constants.minSizeOfCluster) {
+        long start = Utils.getCPUTime();
+        HashSet<MCData> neighborsToFormCluster = findNeighborToFormCluster(d);
+        int numNeighborToFormCluster = neighborsToFormCluster.size();
+        if (numNeighborToFormCluster >= Constants.minSizeOfCluster) {
             Micro_Cluster cluster = formNewCluster(d, neighborsToFormCluster);
             microClusters.add(cluster);
             HashSet<MCData> associateInPD = findAssociatesInPD(d);
             associates.put(cluster, associateInPD);
 
-        } else {
-
+        }
+        double elapsedTimeInSec = (Utils.getCPUTime() - start) * 1.0 / 1000000000;
+        timeForFormingCluster = timeForFormingCluster + elapsedTimeInSec;
+        if (numNeighborToFormCluster < Constants.minSizeOfCluster) {
+            start = Utils.getCPUTime();
             addToPDList(d);
+            elapsedTimeInSec = (Utils.getCPUTime() - start) * 1.0 / 1000000000;
+            timeForAddingToPD = timeForAddingToPD + elapsedTimeInSec;
         }
 
     }
     public static int addToCluster = 0;
     public static int addToPD = 0;
 
-    public ArrayList<Data> detectOutlier(ArrayList<Data> data, int _currentTime, int W, int slide) {
+    public static double avgPointsInClusters = 0;
+    public static double avgNumberOfClusters = 0;
+    public static double avgTimeForProcessExpiredData = 0;
+    public static double avgTimeForProcessNewData = 0;
+    public static double avgTimeForAddingToPD = 0;
+    public static double timeForAddingToPD = 0;
+    public static double avgTimeForAddingToCluster = 0;
+    public static double timeForAddingToCluster = 0;
+    public static double avgTimeForFormingCluster = 0;
+    public static double timeForFormingCluster = 0;
+
+    public ArrayList<MCData> detectOutlier(ArrayList<Data> data, int _currentTime, int W, int slide) {
         numberWindows++;
         currentTime = _currentTime;
-        ArrayList<Data> result = new ArrayList<>();
+        ArrayList<MCData> result = new ArrayList<>();
 
+        long start = Utils.getCPUTime();
         processExpiredData();
-        System.out.println("After processing expired data");
+        double elapsedTimeInSec = (Utils.getCPUTime() - start) * 1.0 / 1000000000;
+        avgTimeForProcessExpiredData = (avgTimeForProcessExpiredData * (numberWindows - 1) + elapsedTimeInSec) / numberWindows;
+      //  System.out.println("After processing expired data");
         //  printStatistic();
+        start = Utils.getCPUTime();
+        timeForAddingToCluster = 0;
+        timeForFormingCluster = 0;
+        timeForAddingToPD = 0;
         data.stream().map((o) -> new MCData(o)).forEach((d) -> {
+
             processData(d);
 
         });
-
+        avgTimeForAddingToCluster = (avgTimeForAddingToCluster * (numberWindows - 1) + timeForAddingToCluster) / numberWindows;
+        avgTimeForFormingCluster = (avgTimeForFormingCluster * (numberWindows - 1) + timeForFormingCluster) / numberWindows;
+        avgTimeForAddingToPD = (avgTimeForAddingToPD * (numberWindows - 1) + timeForAddingToPD) / numberWindows;
+        elapsedTimeInSec = (Utils.getCPUTime() - start) * 1.0 / 1000000000;
+        avgTimeForProcessNewData = (avgTimeForProcessNewData * (numberWindows - 1) + elapsedTimeInSec) / numberWindows;
         //find outlier
         PDList.stream().filter((d) -> (d.checkIsOutlier())).forEach((d) -> {
             result.add(d);
         });
 
-        //  printStatistic();
+        computeNumberOfSafeInlier();
+//        computeAverageNeighbor(result);
+        //printStatistic();
         return result;
 
     }
 
-    private class MCData extends Data {
+    public class MCData extends Data {
 
         public ArrayList<Micro_Cluster> clusters;
         public ArrayList<MCData> precedingNeighbors;
@@ -517,6 +630,7 @@ public class MicroCluster_NewVersion {
             precedingNeighbors = new ArrayList<>();
             numSucceedingNeighbors = 0;
             earliestExpireTime = 0;
+            this.nodeName = d.nodeName;
         }
 
         private class MCDataComparator implements Comparator<MCData> {
@@ -570,7 +684,7 @@ public class MicroCluster_NewVersion {
         }
     }
 
-    private class Micro_Cluster {
+    public class Micro_Cluster {
 
         public MCData center;
         public ArrayList<MCData> members = new ArrayList<>();
@@ -618,17 +732,22 @@ public class MicroCluster_NewVersion {
 
                 case 3:
                     expireSlideIndex = (currentTime - Constants.W) / Constants.slide;
-                    int c = 0;
                     for (MCData d : members) {
                         if (d.getSlideIndex() > expireSlideIndex) {
-                            c++;
-                            score += d.arrivalTime;
+                            score += 1;
                         }
                     }
-                    if (c > 0) {
-                        score = score * 1.0 / c;
-                    }
+
                     break;
+                case 5:
+                    HashSet slideCount = new HashSet();
+                    expireSlideIndex = (currentTime - Constants.W) / Constants.slide;
+                    for (MCData d : this.members) {
+                        if (d.getSlideIndex() > expireSlideIndex) {
+                            slideCount.add(d.getSlideIndex());
+                        }
+                    }
+                    score = slideCount.size();
 
             }
             return score;

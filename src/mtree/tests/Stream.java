@@ -5,10 +5,19 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.PriorityQueue;
 import java.util.Random;
+import jcifs.smb.NtlmPasswordAuthentication;
+import jcifs.smb.SmbException;
+import jcifs.smb.SmbFile;
+import jcifs.smb.SmbFileInputStream;
+import static mtree.tests.CentralServer.neighborCounts;
+import static mtree.tests.CentralServer.numWindows;
 
 import mtree.utils.Constants;
 
@@ -17,6 +26,7 @@ public class Stream {
     PriorityQueue<Data> streams;
 
     public static Stream streamInstance;
+    public static int lastArrivalTime = 0;
 
     public static Stream getInstance(String type) {
 
@@ -95,13 +105,15 @@ public class Stream {
             try {
                 while ((line = bfr.readLine()) != null) {
                     String[] atts = line.split(",");
-                    if(atts.length <=1) break;
+                    if (atts.length <= 1) {
+                        break;
+                    }
                     //check if we have correct row
                     Integer numRow = Integer.valueOf(atts[1]);
                     Integer numCol = Integer.valueOf(atts[0]);
-                    Double value =  Double.valueOf(atts[2]);
-                    if(currentTime < numRow && numRow <= currentTime+ length){
-                        data[numRow-currentTime-1][numCol-1] = value;
+                    Double value = Double.valueOf(atts[2]);
+                    if (currentTime < numRow && numRow <= currentTime + length) {
+                        data[numRow - currentTime - 1][numCol - 1] = value;
                     }
                 }
 
@@ -110,31 +122,29 @@ public class Stream {
 
         } catch (Exception e) {
         }
-        
-       // System.out.println("-----------------------------");
-        for(int i = 0; i < data.length; i++){
+
+        // System.out.println("-----------------------------");
+        for (int i = 0; i < data.length; i++) {
 //            
 //            for(int j=0;j<numCols; j++)
 //                System.out.print(data[i][j]+",");
-            
-          //  System.out.println("-----------------------------");
+
+            //  System.out.println("-----------------------------");
             Data d = new Data(data[i]);
-            d.arrivalTime = currentTime+1+i;
+            d.arrivalTime = currentTime + 1 + i;
             results.add(d);
         }
-        
-        
-        
-        
+
         return results;
     }
 
-    public ArrayList<Data> getIncomingData(int currentTime, int length, String filename,String matrixType) {
+    public ArrayList<Data> getIncomingData(int currentTime, int length, String filename, String matrixType) {
 
-        if(matrixType.equals("sparse")) return getIncomingDataSparse(currentTime,length,
-                filename,Constants.numCols);
-        
-        
+        if (matrixType.equals("sparse")) {
+            return getIncomingDataSparse(currentTime, length,
+                    filename, Constants.numCols);
+        }
+
         ArrayList<Data> results = new ArrayList<>();
         try {
             BufferedReader bfr = new BufferedReader(new FileReader(new File(filename)));
@@ -150,13 +160,12 @@ public class Stream {
                         for (int i = 0; i < d.length; i++) {
 
                             d[i] = Double.valueOf(atts[i])
-                                    +(new Random()).nextDouble()/10000000
-                                    ;
+                                    + (new Random()).nextDouble() / 10000000;
                         }
                         Data data = new Data(d);
                         data.arrivalTime = time;
                         results.add(data);
-                    } 
+                    }
                 }
                 bfr.close();
             } catch (IOException e) {
@@ -169,8 +178,6 @@ public class Stream {
         }
         return results;
     }
-
-
 
     public void getRandomInput(int length, int range) {
 
@@ -199,7 +206,7 @@ public class Stream {
                     double[] d = new double[atts.length];
                     for (int i = 0; i < d.length; i++) {
 
-                        d[i] = Double.valueOf(atts[i]) ;
+                        d[i] = Double.valueOf(atts[i]);
                     }
                     Data data = new Data(d);
                     data.arrivalTime = time;
@@ -218,9 +225,39 @@ public class Stream {
     }
 
     public Stream() {
-       // Comparator<Data> comparator = new DataComparator();
+        // Comparator<Data> comparator = new DataComparator();
 
 //        streams = new PriorityQueue<Data>(comparator);
+    }
+
+    ArrayList<Data> getNewData(String fileName) throws MalformedURLException, SmbException, UnknownHostException, IOException {
+
+        ArrayList<Data> result = new ArrayList<>();
+
+        String user = "Luan Tran:Luan0991#";
+        NtlmPasswordAuthentication auth = new NtlmPasswordAuthentication(user);
+
+        SmbFile sFile = new SmbFile(fileName, auth);
+        SmbFileInputStream smbStream = new SmbFileInputStream(sFile);
+        BufferedReader br = new BufferedReader(new InputStreamReader(smbStream));
+        String line;
+        while ((line = br.readLine()) != null) {
+            lastArrivalTime++;
+            if (!line.equals("-")) {
+                String[] atts = line.split(",");
+                double[] d = new double[atts.length];
+                for (int i = 0; i < d.length; i++) {
+
+                    d[i] = Double.valueOf(atts[i]);
+                }
+                Data data = new Data(d);
+                data.arrivalTime = lastArrivalTime;
+                result.add(data);
+            }
+        }
+
+        return result;
+
     }
 
 }

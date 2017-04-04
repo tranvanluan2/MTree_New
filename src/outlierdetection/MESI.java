@@ -34,6 +34,9 @@ public class MESI {
 
     public static double avgNeighborList = 0;
     public static double avgAllWindowNeighborList = 0;
+    
+    public static double avgNumberSafeInliers = 0;
+    public static int count2 = 0;
 
     public ArrayList<Data> detectOutlier(ArrayList<Data> data, int currentTime, int W, int slide) {
 
@@ -86,6 +89,18 @@ public class MESI {
         currentCPUTime = Utils.getCPUTime();
         MesureMemoryThread.timeForNewSlide += currentCPUTime - startCPUTime;
 
+        //compute # safe inliers
+        int numSafeInlier = 0;
+        for (int i = window.startSlide; i < window.slides.size(); i++) {
+            if (i >= 0) {
+                for (MESIObject o : window.slides.get(i).points) {
+                    if(o.numSucEvidence >=Constants.k)
+                        numSafeInlier++;
+                }
+            }
+        }
+        avgNumberSafeInliers = (avgNumberSafeInliers* count2+numSafeInlier)/(count2+1);
+        System.out.println("Number of safe inliers = "+ avgNumberSafeInliers);
         //comput avg trigger list
         int count2 = 0;
         int count3 = 0;

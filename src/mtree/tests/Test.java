@@ -1,13 +1,14 @@
 package mtree.tests;
 
-import java.io.BufferedWriter;
-import java.io.FileOutputStream;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
 import java.util.ArrayList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-import mtree.utils.Constants;
 import mtree.utils.FibonacciHeap;
 
 public class Test {
@@ -88,6 +89,27 @@ public class Test {
         
         
 }
+    
+    public static void readFromFile(String filename){
+        try {
+            FileReader fr = new FileReader(new File(filename));
+            BufferedReader bfr = new BufferedReader(fr);
+            String line="";
+            while((line=bfr.readLine())!=null){
+                String[] numbers= line.split(" ");
+                for(int i=0; i < 3; i++){
+                    Double number0 = Double.valueOf(numbers[0]);
+                    Double number1 = Double.valueOf(numbers[1]);
+                    Double number2 = Double.valueOf(numbers[2]);
+                }
+            }
+        } catch (FileNotFoundException ex) {
+            Logger.getLogger(Test.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IOException ex) {
+            Logger.getLogger(Test.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+    }
     
     public static void printHeaps(){
         System.out.println("------------------------------------");

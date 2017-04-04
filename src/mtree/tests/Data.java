@@ -11,6 +11,7 @@ public class Data implements EuclideanCoordinate, Comparable<Data> {
 	
 	//arrival time 
 	public int arrivalTime;
+        public String nodeName = "";
         
         
 	
@@ -83,5 +84,14 @@ public class Data implements EuclideanCoordinate, Comparable<Data> {
 		
 		return 0;
 	}
+
+    String toStringValue() {
+        String result = "";
+        for(int i = 0 ; i < this.values.length; i++){
+            result += this.values[i]+",";
+        }
+        return result;
+    }
 	
+        
 }

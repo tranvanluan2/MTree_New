@@ -14,25 +14,72 @@ import mtree.utils.Constants;
  *
  * @author Luan
  */
-public class MCOD_MESI_Safe { 
+public class MCOD_MESI_Safe {
 
     public static ArrayList<Cluster> safeClusters = new ArrayList<>();
     public static ArrayList<Cluster> unsafeClusters = new ArrayList<>();
+    public static int numWindows = 0;
+    public static double avgPointsInSafeCluster = 0;
+    public static double avgPointsInUnSafeCluster = 0;
+    public static double avgNumberOfCluster = 0;
+    public static double avgNumberOfSafeCluster = 0;
+    public static double avgNumberOfUnSafeCluster = 0;
+    public static double avgTimeForProcessExpiredData = 0;
+    public static double avgTimeForProcessNewData = 0;
+    public static double avgTimeForAddingToUnafeCluster = 0;
+    public static double timeForAddingToUnsafeCluster = 0;
+    public static double avgTimeForAddingToSafeCluster = 0;
+    public static double timeForAddingToSafeCluster = 0;
+    public static double avgTimeForFormingUnsafeCluster = 0;
+    public static double timeForFormingUnSafeCluster = 0;
+    public static int numberWindows = 0;
+    public static int numberDistance = 0;
+    public static int numDispersedCluster = 0;
+    public static int numRecomputation = 0;
 
-    public ArrayList<Data> detectOutlier(ArrayList<Data> data, int _currentTime, int W, int slide) {
-        processExpiredSlide((_currentTime - W-1) / Constants.slide);
+    public ArrayList<MCData> detectOutlier(ArrayList<Data> data, int _currentTime, int W, int slide) {
+        processExpiredSlide((_currentTime - W - 1) / Constants.slide);
         data.stream().forEach((d) -> {
             processNewData(new MCData(d));
         });
         unsafeClusters.stream().forEach((cluster) -> {
             cluster.slide_members.values().stream().forEach((points) -> {
                 points.stream().filter((d2) -> (d2.isOutlier())).forEach((d2) -> {
-                    reProbe(d2, (_currentTime-1) / Constants.slide);
+                    reProbe(d2, (_currentTime - 1) / Constants.slide);
                 });
             });
         });
-        ArrayList<Data> outliers = scanToFindOutlier();
+        ArrayList<MCData> outliers = scanToFindOutlier();
+
+        printStatistics();
         return outliers;
+    }
+
+    public static void printStatistics() {
+
+        int numPointInSafeCluster = 0;
+        int numPointInUnSafeCluster = 0;
+
+        numPointInSafeCluster = safeClusters.stream().map((c) -> c.numMembers()).reduce(numPointInSafeCluster, Integer::sum);
+        numPointInUnSafeCluster = unsafeClusters.stream().map((c) -> c.numMembers()).reduce(numPointInUnSafeCluster, Integer::sum);
+
+        avgPointsInSafeCluster = (avgPointsInSafeCluster * numWindows + numPointInSafeCluster) * 1.0 / (numWindows + 1);
+        avgPointsInUnSafeCluster = (avgPointsInUnSafeCluster * numWindows + numPointInUnSafeCluster) * 1.0 / (numWindows + 1);
+        avgNumberOfCluster = (avgNumberOfCluster * numWindows + safeClusters.size() + unsafeClusters.size()) / (numWindows + 1);
+        avgNumberOfSafeCluster = (avgNumberOfSafeCluster * numWindows + safeClusters.size()) / (numWindows + 1);
+        avgNumberOfUnSafeCluster = (avgNumberOfUnSafeCluster * numWindows + unsafeClusters.size()) / (numWindows + 1);
+        System.out.println("# avg number of clusters = " + avgNumberOfCluster);
+        System.out.println("# avg number of safe clusters = " + avgNumberOfSafeCluster);
+        System.out.println("# avg number of unsafe clusters = " + avgNumberOfUnSafeCluster);
+        numWindows++;
+        System.out.println("# avg points in safe clusters = " + avgPointsInSafeCluster);
+        System.out.println("# avg points in unsafe clusters = " + avgPointsInUnSafeCluster);
+        System.out.println("# avg time for adding to unsafe clusters = " + avgTimeForAddingToUnafeCluster);
+        System.out.println("# avg time for adding to safe clusters = " + avgTimeForAddingToSafeCluster);
+        System.out.println("# avg time for adding to forming clusters = " + avgTimeForFormingUnsafeCluster);
+        System.out.println("# distance computation = " + numberDistance);
+        System.out.println("# dispersed clusters = " + numDispersedCluster);
+        System.out.println("# recomputation = " + numRecomputation);
     }
 
     public void processNewData(MCData d) {
@@ -67,11 +114,15 @@ public class MCOD_MESI_Safe {
     private Cluster findSafeClusterToAdd(MCData d) {
         Cluster result = null;
         for (Cluster cluster : safeClusters) {
+            numberDistance++;
             if (DistanceFunction.euclideanDistance(d, cluster.center) <= Constants.R / 2) {
                 result = cluster;
+
                 break;
+
             }
         }
+
         return result;
     }
 
@@ -79,11 +130,11 @@ public class MCOD_MESI_Safe {
         int slideIndex = d.lastProbe + 1;
         while (slideIndex <= newestSlideIndex) {
             Cluster cluster = d.clusters.get(0);
-            
+
             ArrayList<Cluster> candidates = new ArrayList<>();
             candidates.add(cluster);
             candidates.addAll(cluster.associateClusters);
-            
+
             for (Cluster c : candidates) {
                 if (DistanceFunction.euclideanDistance(d, c.center) <= Constants.R * 3 / 2) {
                     ArrayList<MCData> points = c.slide_members.get(slideIndex);
@@ -94,6 +145,7 @@ public class MCOD_MESI_Safe {
                     }
                 }
             }
+            numberDistance += candidates.size();
             if (!d.isOutlier()) {
                 d.lastProbe = slideIndex;
                 break;
@@ -110,20 +162,25 @@ public class MCOD_MESI_Safe {
         //check with points in associate cluster
         cluster.associateClusters.stream().filter((c) -> !(c.isSafe())).forEach((c) -> {
             double distanceToCenter = DistanceFunction.euclideanDistance(d, c.center);
+            numberDistance++;
             if (distanceToCenter > Constants.R * 3.0 / 2) {
 
             } else if (distanceToCenter <= Constants.R / 2) {
                 ArrayList<MCData> points = c.slide_members.get(d.getSlideIndex());
-                points.stream().filter((d2) -> (d2.getSlideIndex() == d.getSlideIndex() )).forEach((d2) -> {
-                    d2.numSucceedingNeighbors++;
-                });
-                
+                if (points != null) {
+                    points.stream().filter((d2) -> (d2.getSlideIndex() == d.getSlideIndex())).forEach((d2) -> {
+                        d2.numSucceedingNeighbors++;
+                    });
+                }
+
             } else {
                 ArrayList<MCData> points = c.slide_members.get(d.getSlideIndex());
-                points.stream().filter((d2) -> (d.isNeighbor(d2))).filter((d2) -> (d2.getSlideIndex() == d.getSlideIndex())).forEach((d2) -> {
-                    d2.numSucceedingNeighbors++;
-                });
-                
+                if (points != null) {
+                    points.stream().filter((d2) -> (d.isNeighbor(d2))).filter((d2) -> (d2.getSlideIndex() == d.getSlideIndex())).forEach((d2) -> {
+                        d2.numSucceedingNeighbors++;
+                    });
+                }
+
             }
         });
     }
@@ -131,11 +188,13 @@ public class MCOD_MESI_Safe {
     private Cluster findUnsafeClusterToAdd(MCData d) {
         Cluster result = null;
         for (Cluster cluster : unsafeClusters) {
+            numberDistance++;
             if (DistanceFunction.euclideanDistance(d, cluster.center) <= Constants.R / 2) {
                 result = cluster;
                 break;
             }
         }
+
         return result;
     }
 
@@ -153,20 +212,21 @@ public class MCOD_MESI_Safe {
         }).forEach((c) -> {
             c.associateClusters.add(cluster);
         });
-
+        numberDistance += safeClusters.size();
         unsafeClusters.stream().filter((c) -> (DistanceFunction.euclideanDistance(cluster.center, c.center) <= Constants.R * 2)).map((c) -> {
             cluster.associateClusters.add(c);
             return c;
         }).forEach((c) -> {
             c.associateClusters.add(cluster);
         });
-        unsafeClusters.stream().filter((c) -> (DistanceFunction.euclideanDistance(cluster.center, c.center) <= Constants.R * 2)).map((c) -> {
-            cluster.associateClusters.add(c);
-            return c;
-        }).map((c) -> {
-            c.associateClusters.add(cluster);
-            return c;
-        });
+        numberDistance += unsafeClusters.size();
+//        unsafeClusters.stream().filter((c) -> (DistanceFunction.euclideanDistance(cluster.center, c.center) <= Constants.R * 2)).map((c) -> {
+//            cluster.associateClusters.add(c);
+//            return c;
+//        }).map((c) -> {
+//            c.associateClusters.add(cluster);
+//            return c;
+//        });
 //            
 
         int slideIndex = d.getSlideIndex();
@@ -231,7 +291,7 @@ public class MCOD_MESI_Safe {
         while (slideIndex > d.getSlideIndex() - Constants.W / Constants.slide) {
             for (Cluster c : cluster.associateClusters) {
                 double distanceToCenter = DistanceFunction.euclideanDistance(d, c.center);
-
+                numberDistance++;
                 if (distanceToCenter > Constants.R * 3.0 / 2) {
 
                 } else if (distanceToCenter <= Constants.R / 2) {
@@ -281,10 +341,15 @@ public class MCOD_MESI_Safe {
             slideIndex--;
         }
     }
-    private void processSafeBecomeUnsafeCluster(){
-        unsafeClusters.stream().forEach((cluster) -> {
-           if(!cluster.isSafe()){
-               for (ArrayList<MCData> points : cluster.slide_members.values()) {
+
+    private void processSafeBecomeUnsafeCluster() {
+
+        for (int i = safeClusters.size() - 1; i >= 0; i--) {
+            Cluster cluster = safeClusters.get(i);
+            if (!cluster.isSafe()) {
+                numDispersedCluster++;
+                numRecomputation += cluster.numMembers();
+                for (ArrayList<MCData> points : cluster.slide_members.values()) {
 
                     for (MCData d2 : points) {
 
@@ -305,6 +370,7 @@ public class MCOD_MESI_Safe {
                         //find neighbors in associate cluster
                         for (Cluster c : cluster.associateClusters) {
                             if (DistanceFunction.euclideanDistance(d2, c.center) <= Constants.R * 3.0 / 2) {
+                                numberDistance++;
                                 for (ArrayList<MCData> ps : c.slide_members.values()) {
 
                                     for (MCData d3 : ps) {
@@ -325,8 +391,8 @@ public class MCOD_MESI_Safe {
 
                 safeClusters.remove(cluster);
                 unsafeClusters.add(cluster);
-           }
-        });
+            }
+        }
     }
 
     private void processExpiredSlide(int slideIndex) {
@@ -340,8 +406,7 @@ public class MCOD_MESI_Safe {
             Cluster cluster = safeClusters.get(j);
 
             cluster.slide_members.remove(slideIndex);
-            
-            
+
         }
 //if the cluster becomes unsafe, recompute neighbors for its members
         processSafeBecomeUnsafeCluster();
@@ -350,9 +415,9 @@ public class MCOD_MESI_Safe {
 
     }
 
-    private ArrayList<Data> scanToFindOutlier() {
+    private ArrayList<MCData> scanToFindOutlier() {
 
-        ArrayList<Data> result = new ArrayList<>();
+        ArrayList<MCData> result = new ArrayList<>();
         unsafeClusters.stream().forEach((c) -> {
 
             c.slide_members.values().stream().forEach((points) -> {
@@ -374,20 +439,75 @@ public class MCOD_MESI_Safe {
         }
     }
 
-    private class Cluster {
+    public void findNeighbors(MCData d) {
+        ArrayList<Cluster> clusters=  new ArrayList<>();
+        clusters.addAll(safeClusters);
+        clusters.addAll(unsafeClusters);
+        for (Cluster c : clusters) {
+            if (DistanceFunction.euclideanDistance(d, c.center) <= Constants.R * 3 / 2) {
+
+                for (ArrayList<MCData> datas : c.slide_members.values()) {
+                    for (MCData d2 : datas) {
+                        if (DistanceFunction.euclideanDistance(d, d2) <= Constants.R) {
+                            if (d2.getSlideIndex() >= d.getSlideIndex()) {
+                                d.numSucceedingNeighbors++;
+                            } else if (d.numPrecedingNeighbor.get(d2.getSlideIndex()) != null) {
+                                d.numPrecedingNeighbor.put(d2.getSlideIndex(), d.numPrecedingNeighbor.get(d2.getSlideIndex()) + 1);
+                            }
+                            else if(d.numPrecedingNeighbor.get(d2.getSlideIndex()) == null){
+                                d.numPrecedingNeighbor.put(d2.getSlideIndex(),  1);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public void updateNeighbors(HashMap<Integer, HashMap<Integer, Integer>> neighborCountPerSlide) {
+        ArrayList<Cluster> clusters= new ArrayList<>();
+        clusters.addAll(safeClusters);
+        clusters.addAll(unsafeClusters);
+        for(Integer arrivalTime: neighborCountPerSlide.keySet()){
+            HashMap<Integer, Integer> neighborsPerSlide = neighborCountPerSlide.get(arrivalTime);
+            for(Cluster c: clusters){
+                for(ArrayList<MCData> ds: c.slide_members.values()){
+                    for(MCData d: ds){
+                        if(d.arrivalTime == arrivalTime){
+                            //update for d
+                            for(Integer slide: neighborsPerSlide.keySet()){
+                                if(slide == -1) d.numSucceedingNeighbors += neighborsPerSlide.get(slide);
+                                else{
+                                    if(d.numPrecedingNeighbor.get(slide)!=null){
+                                        d.numPrecedingNeighbor.put(slide, d.numPrecedingNeighbor.get(slide) + neighborsPerSlide.get(slide));
+                                    }
+                                    else{
+                                        d.numPrecedingNeighbor.put(slide,  neighborsPerSlide.get(slide));
+                                    }
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public class Cluster {
 
         public MCData center;
         public ArrayList<Cluster> associateClusters = new ArrayList<>();
         public HashMap<Integer, ArrayList<MCData>> slide_members = new HashMap<>();
 
-        public int numMembers(){
+        public int numMembers() {
             int count = 0;
             count = slide_members.values().stream().map((members) -> members.size()).reduce(count, Integer::sum);
             return count;
         }
+
         public boolean isSafe() {
-            
-            
+
             return numMembers() > Constants.k;
         }
 
@@ -407,12 +527,12 @@ public class MCOD_MESI_Safe {
         }
     }
 
-    private class MCData extends Data {
+    public class MCData extends Data {
 
         public ArrayList<Cluster> clusters = new ArrayList<>();
         public int numSucceedingNeighbors;
         public HashMap<Integer, Integer> numPrecedingNeighbor = new HashMap<>();
-        public int lastProbe ;
+        public int lastProbe;
         public int sIndex;
 
         public MCData(Data d) {
@@ -424,7 +544,8 @@ public class MCOD_MESI_Safe {
             numPrecedingNeighbor = new HashMap<>();
             numSucceedingNeighbors = 0;
             sIndex = (int) Math.floor((arrivalTime - 1) / Constants.slide);
-            lastProbe=sIndex;
+            lastProbe = sIndex;
+            this.nodeName = d.nodeName;
         }
 
         public int countNeighborToSlide(int slideIndex) {
@@ -434,6 +555,7 @@ public class MCOD_MESI_Safe {
         }
 
         private boolean isNeighbor(MCData d2) {
+            numberDistance++;
             return DistanceFunction.euclideanDistance(this, d2) <= Constants.R && this.arrivalTime != d2.arrivalTime;
         }
 
@@ -461,7 +583,7 @@ public class MCOD_MESI_Safe {
             numPrecedingNeighbor.clear();
             numSucceedingNeighbors = 0;
             lastProbe = sIndex;
-            
+
         }
     }
 

@@ -8,11 +8,20 @@ import java.util.Random;
 import mtree.tests.Data;
 import mtree.utils.Constants;
 
-public class ApproxStorm extends ExactStorm {
+public class ApproxStorm {
+
+    public static MTreeClass mtree = new MTreeClass();
+    // store list id in increasing time arrival order
+    public static ArrayList<DataStormObject> dataList = new ArrayList<>();
+
+    public double avgCurrentNeighbor = 0;
+    public static double avgAllWindowNeighbor = 0;
+    public static double averageSafeInlier = 0;
+    public static double numWindows = 0;
 
     public static double p = 0.01;
 
-    public static ArrayList<DataStormObject> safeInlierList = new ArrayList<DataStormObject>();
+    public static ArrayList<DataStormObject> safeInlierList = new ArrayList<>();
 
     public ApproxStorm(double _p) {
         super();
@@ -24,9 +33,8 @@ public class ApproxStorm extends ExactStorm {
         super();
     }
 
-    @Override
     public ArrayList<Data> detectOutlier(ArrayList<Data> data, int currentTime, int W, int slide) {
-        ArrayList<Data> outliers = new ArrayList<Data>();
+        ArrayList<Data> outliers = new ArrayList<>();
 
         /**
          * remove expired data from dataList and mtree
@@ -44,26 +52,24 @@ public class ApproxStorm extends ExactStorm {
             }
         }
         for (int i = index; i >= 0; i--) {
-
+            safeInlierList.remove(dataList.get(i));
             dataList.remove(i);
         }
 
-        for (Data d : data) {
-
-            DataStormObject ob = new DataStormObject(d);
+        data.stream().map((d) -> new DataStormObject(d)).map((ob) -> {
             /**
              * do range query for ob
              */
             MTreeClass.Query query = mtree.getNearestByRange(ob, Constants.R);
-
-            ArrayList<DataStormObject> queryResult = new ArrayList<DataStormObject>();
+            ArrayList<DataStormObject> queryResult = new ArrayList<>();
             for (MTreeClass.ResultItem ri : query) {
                 queryResult.add((DataStormObject) ri.data);
-                if (ri.distance == 0) ob.values[0] += (new Random()).nextDouble() / 1000000;
+//                if (ri.distance == 0) {
+//                    ob.values[0] += (new Random()).nextDouble() / 1000000;
+//                }
             }
-
-            Collections.sort(queryResult, new DataStormComparator());
-            int count_before = 0;
+//            Collections.sort(queryResult, new DataStormComparator());
+            ob.count_before = 0;
             for (int i = 0; i < queryResult.size(); i++) {
 
                 /**
@@ -72,21 +78,24 @@ public class ApproxStorm extends ExactStorm {
                 DataStormObject dod = queryResult.get(i);
                 if (dod != null) {
 
-                    if (currentTime <= W) {
-                        if (ob.nn_before.size() < Constants.k) ob.nn_before.add(dod);
-
-                    } else {
-                        count_before++;
+                    if (ExactStorm.isSameSlide(dod, ob)) {
+                        ob.count_after++;
+                    }
+//                    else {
+//                        ob.count_before++;
+//                    }
+                    else if (dod.count_after >= Constants.k) {
+                        ob.count_before++;
                     }
 
                     dod.count_after++;
                     /**
                      * check dod is safe inliers
                      */
-                    if (currentTime > W && dod.count_after >= Constants.k) {
+                    if (dod.count_after == Constants.k) {
                         // check if # of safe inliers > pW
-                        
-                        if (safeInlierList.size() >= (int) Constants.W * p) {
+
+                        while (safeInlierList.size() >= (int) Constants.W * p) {
                             // remove randomly a safe inliers
                             int r_index = (new Random()).nextInt(safeInlierList.size());
                             DataStormObject remove = safeInlierList.get(r_index);
@@ -94,69 +103,76 @@ public class ApproxStorm extends ExactStorm {
                             dataList.remove(remove);
                             mtree.remove(remove);
                             remove = null;
-                        } 
+                        }
+
                         safeInlierList.add(dod);
+
                     }
                 }
 
             }
-
-            if (currentTime > W) ob.frac_before = count_before * 1.0 / safeInlierList.size();
+            return ob;
+        }).map((ob) -> {
+            if (currentTime > W) {
+                ob.frac_before = ob.count_before * 1.0 / safeInlierList.size();
+            }
+            return ob;
+        }).map((ob) -> {
             /**
              * store object into mtree
              */
-            mtree.add(ob);
+            if (ob.count_after >= Constants.k) {
+                        // check if # of safe inliers > pW
 
-            dataList.add(ob);
+                        while (safeInlierList.size() >= (int) Constants.W * p) {
+                            // remove randomly a safe inliers
+                            int r_index = (new Random()).nextInt(safeInlierList.size());
+                            DataStormObject remove = safeInlierList.get(r_index);
+                            safeInlierList.remove(r_index);
+                            dataList.remove(remove);
+                            mtree.remove(remove);
+                            remove = null;
+                        }
 
-        }
+                        
+                        safeInlierList.add(ob);
+
+                    }
+            return ob;
+            
+        }).forEach((ob) -> {
+            
+                        dataList.add(ob);
+                        mtree.add(ob);
+        });
 
         /**
          * Compute number of safe inliers for the first window
          */
-        if (currentTime <= W) {
-            for (DataStormObject d : dataList) {
-                if (d.count_after >= Constants.k) {
-                    safeInlierList.add(d);
-                }
+        if (currentTime == W) {
+//            dataList.stream().filter((d) -> (d.count_after >= Constants.k)).forEach((d) -> {
+//                safeInlierList.add(d);
+//            });
+//           
 
-            }
-            /**
-             * contrains safeInlerList <=pW
-             */
-
-            // check if # of safe inliers > pW
-            /**
-            while (safeInlierList.size() >= (int) Constants.W * p) {
-                // remove randomly a safe inliers
-                int r_index = (new Random()).nextInt(safeInlierList.size());
-                DataStormObject remove = safeInlierList.get(r_index);
-                safeInlierList.remove(r_index);
-                dataList.remove(remove);
-                mtree.remove(remove);
-            }
-*/
             // update frac_before for all object in window
-            for (DataStormObject d : dataList) {
-                d.frac_before = d.nn_before.size() * 1.0 / safeInlierList.size();
-            }
+            dataList.stream().forEach((d) -> {
+                d.frac_before = d.count_before * 1.0 / safeInlierList.size();
+            });
         }
 
         // do outlier detection
-        for (DataStormObject d : dataList) {
+        dataList.stream().forEach((d) -> {
             /**
              * Count preceeding neighbors
              */
             // System.out.println(d.values[0]);
-            int pre = (int) (d.frac_before * (Constants.W - currentTime + d.arrivalTime));
-
+            int pre = (int) (d.frac_before * (Constants.W - currentTime + (d.arrivalTime / Constants.slide)* Constants.slide ));
             if (pre + d.count_after < Constants.k) {
-
                 // System.out.println("Outlier: "+d.values[0]);
                 outliers.add(d);
             }
-        }
-        // System.out.println("#outliers: "+count_outlier);
+        }); // System.out.println("#outliers: "+count_outlier);
 
 //        Utils.computeUsedMemory();
         return outliers;
