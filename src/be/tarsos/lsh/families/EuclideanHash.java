@@ -52,6 +52,7 @@ public class EuclideanHash implements HashFunction{
 	
 	public int hash(Vector vector){
 		double hashValue = (vector.dot(randomProjection)+offset)/Double.valueOf(w);
+//                System.out.println("Hash value = "+(int) Math.round(hashValue));
 		return (int) Math.round(hashValue);
 	}
 }

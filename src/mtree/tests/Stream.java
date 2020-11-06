@@ -5,19 +5,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.MalformedURLException;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.PriorityQueue;
 import java.util.Random;
-import jcifs.smb.NtlmPasswordAuthentication;
-import jcifs.smb.SmbException;
-import jcifs.smb.SmbFile;
-import jcifs.smb.SmbFileInputStream;
-import static mtree.tests.CentralServer.neighborCounts;
-import static mtree.tests.CentralServer.numWindows;
 
 import mtree.utils.Constants;
 
@@ -36,47 +27,49 @@ public class Stream {
             streamInstance = new Stream();
 //            streamInstance.getData(Constants.dataFile);
             return streamInstance;
-        } else if ("ForestCover".equals(type)) {
-            streamInstance = new Stream();
-            streamInstance.getData(Constants.forestCoverFileName);
-            return streamInstance;
-        } else if ("TAO".equals(type)) {
-            streamInstance = new Stream();
-            streamInstance.getData(Constants.taoFileName);
-            return streamInstance;
-        } else if ("randomData".equals(type)) {
-            streamInstance = new Stream();
-            streamInstance.getData(Constants.randomFileName1111);
-            return streamInstance;
-        } else if ("randomData0.001".equals(type)) {
-            streamInstance = new Stream();
-            streamInstance.getData(Constants.randomFileName001);
-            return streamInstance;
-        } else if ("randomData0.01".equals(type)) {
-            streamInstance = new Stream();
-            streamInstance.getData(Constants.randomFileName01);
-            return streamInstance;
-        } else if ("randomData0.1".equals(type)) {
-            streamInstance = new Stream();
-            streamInstance.getData(Constants.randomFileName1);
-            return streamInstance;
-        } else if ("randomData1".equals(type)) {
-            streamInstance = new Stream();
-            streamInstance.getData(Constants.randomFileName1percent);
-            return streamInstance;
-        } else if ("randomData10".equals(type)) {
-            streamInstance = new Stream();
-            streamInstance.getData(Constants.randomFileName10percent);
-            return streamInstance;
-        } else if ("tagData".equals(type)) {
-            streamInstance = new Stream();
-            streamInstance.getData(Constants.tagCALC);
-            return streamInstance;
-        } else if ("Trade".equals(type)) {
-            streamInstance = new Stream();
-            streamInstance.getData(Constants.STT);
-            return streamInstance;
-        } else {
+        } 
+//        else if ("ForestCover".equals(type)) {
+//            streamInstance = new Stream();
+//            streamInstance.getData(Constants.forestCoverFileName);
+//            return streamInstance;
+//        } else if ("TAO".equals(type)) {
+//            streamInstance = new Stream();
+//            streamInstance.getData(Constants.taoFileName);
+//            return streamInstance;
+//        } else if ("randomData".equals(type)) {
+//            streamInstance = new Stream();
+//            streamInstance.getData(Constants.randomFileName1111);
+//            return streamInstance;
+//        } else if ("randomData0.001".equals(type)) {
+//            streamInstance = new Stream();
+//            streamInstance.getData(Constants.randomFileName001);
+//            return streamInstance;
+//        } else if ("randomData0.01".equals(type)) {
+//            streamInstance = new Stream();
+//            streamInstance.getData(Constants.randomFileName01);
+//            return streamInstance;
+//        } else if ("randomData0.1".equals(type)) {
+//            streamInstance = new Stream();
+//            streamInstance.getData(Constants.randomFileName1);
+//            return streamInstance;
+//        } else if ("randomData1".equals(type)) {
+//            streamInstance = new Stream();
+//            streamInstance.getData(Constants.randomFileName1percent);
+//            return streamInstance;
+//        } else if ("randomData10".equals(type)) {
+//            streamInstance = new Stream();
+//            streamInstance.getData(Constants.randomFileName10percent);
+//            return streamInstance;
+//        } else if ("tagData".equals(type)) {
+//            streamInstance = new Stream();
+//            streamInstance.getData(Constants.tagCALC);
+//            return streamInstance;
+//        } else if ("Trade".equals(type)) {
+//            streamInstance = new Stream();
+//            streamInstance.getData(Constants.STT);
+//            return streamInstance;
+//        } 
+        else {
             streamInstance = new Stream();
             streamInstance.getRandomInput(1000, 10);
             return streamInstance;
@@ -138,19 +131,17 @@ public class Stream {
         return results;
     }
 
-    public ArrayList<Data> getIncomingData(int currentTime, int length, String filename, String matrixType) {
+    public ArrayList<Data> getIncomingData(int currentTime, int length, String filename) {
 
-        if (matrixType.equals("sparse")) {
-            return getIncomingDataSparse(currentTime, length,
-                    filename, Constants.numCols);
-        }
-
+        
         ArrayList<Data> results = new ArrayList<>();
+        
         try {
             BufferedReader bfr = new BufferedReader(new FileReader(new File(filename)));
 
             String line = "";
             int time = 0;
+//            HashSet<Integer> selected_idx = new HashSet<Integer>();
             try {
                 while ((line = bfr.readLine()) != null) {
                     time++;
@@ -160,7 +151,8 @@ public class Stream {
                         for (int i = 0; i < d.length; i++) {
 
                             d[i] = Double.valueOf(atts[i])
-                                    + (new Random()).nextDouble() / 10000000;
+//                                    + (new Random()).nextDouble() / 10000000
+                                    ;
                         }
                         Data data = new Data(d);
                         data.arrivalTime = time;
@@ -230,36 +222,7 @@ public class Stream {
 //        streams = new PriorityQueue<Data>(comparator);
     }
 
-    ArrayList<Data> getNewData(String fileName) throws MalformedURLException, SmbException, UnknownHostException, IOException {
-
-        ArrayList<Data> result = new ArrayList<>();
-
-        String user = "Luan Tran:Luan0991#";
-        NtlmPasswordAuthentication auth = new NtlmPasswordAuthentication(user);
-
-        SmbFile sFile = new SmbFile(fileName, auth);
-        SmbFileInputStream smbStream = new SmbFileInputStream(sFile);
-        BufferedReader br = new BufferedReader(new InputStreamReader(smbStream));
-        String line;
-        while ((line = br.readLine()) != null) {
-            lastArrivalTime++;
-            if (!line.equals("-")) {
-                String[] atts = line.split(",");
-                double[] d = new double[atts.length];
-                for (int i = 0; i < d.length; i++) {
-
-                    d[i] = Double.valueOf(atts[i]);
-                }
-                Data data = new Data(d);
-                data.arrivalTime = lastArrivalTime;
-                result.add(data);
-            }
-        }
-
-        return result;
-
-    }
-
+   
 }
 
 class DataComparator implements Comparator<Data> {

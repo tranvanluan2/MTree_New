@@ -41,7 +41,8 @@ import be.tarsos.lsh.families.DistanceComparator;
 import be.tarsos.lsh.families.DistanceMeasure;
 import be.tarsos.lsh.families.HashFamily;
 import be.tarsos.lsh.util.FileUtils;
-import mtree.tests.Data;
+//import mtree.tests.Data;
+//import outlierdetection.MESI_LSH_Upper_Lower;
 
 /**
  * Implements a Locality Sensitive Hash scheme.
@@ -62,11 +63,7 @@ public class LSH {
 		this.hashFamily = hashFamily;
 	}
 
-   
-   
-    
-        
-      
+
 	
 	/**
 	 * Build an index by creating a new one and adding each vector.

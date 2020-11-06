@@ -29,6 +29,9 @@ import java.util.List;
 
 import be.tarsos.lsh.families.HashFamily;
 import be.tarsos.lsh.families.HashFunction;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.stream.IntStream;
 
 /**
  * An index contains one or more locality sensitive hash tables. These hash
@@ -37,7 +40,7 @@ import be.tarsos.lsh.families.HashFunction;
  *
  * @author Joren Six
  */
-class HashTable implements Serializable {
+public class HashTable implements Serializable {
 
     private static final long serialVersionUID = -5410017645908038641L;
 
@@ -45,7 +48,7 @@ class HashTable implements Serializable {
      * Contains the mapping between a combination of a number of hashes (encoded
      * using an integer) and a list of possible nearest neighbours
      */
-    private HashMap<Integer, List<Vector>> hashTable;
+    public HashMap<Integer, List<Vector>> hashTable;
     private HashFunction[] hashFunctions;
     private HashFamily family;
 
@@ -86,6 +89,44 @@ class HashTable implements Serializable {
         }
     }
 
+    public List<Vector> query(Integer combinedHash) {
+
+        //sort the keys based on the distances to the queryhash
+        Integer[] all_keys = new Integer[hashTable.keySet().size()];
+        float[] all_distances = new float[hashTable.keySet().size()];
+        Integer[] all_idx = new Integer[hashTable.keySet().size()];
+
+        int count = 0;
+        for (Integer k : hashTable.keySet()) {
+            all_keys[count] = k;
+            all_distances[count] = Math.abs(k - combinedHash);
+            all_idx[count] = count;
+            count += 1;
+        }
+
+        Arrays.sort(all_idx, new Comparator<Integer>() {
+            @Override
+            public int compare(final Integer o1, final Integer o2) {
+                return Float.compare(all_distances[o1], all_distances[o2]);
+            }
+        });
+        
+        ArrayList<Vector> results = new ArrayList<>();
+        for(int i = 0; i < all_idx.length; i++){
+            Integer k = all_keys[all_idx[i]];
+            List<Vector> r = hashTable.get(k);
+            results.addAll(r);
+        }
+
+//        if (hashTable.containsKey(combinedHash)) {
+//            List<Vector> r = hashTable.get(combinedHash);
+//            return r;
+//        } else {
+//            return new ArrayList<Vector>();
+//        }
+        return results;
+    }
+
     /**
      * Add a vector to the index.
      *
@@ -96,7 +137,18 @@ class HashTable implements Serializable {
         if (!hashTable.containsKey(combinedHash)) {
             hashTable.put(combinedHash, new ArrayList<Vector>());
         }
+
         hashTable.get(combinedHash).add(vector);
+    }
+
+    public void add(Vector vector, int idx) {
+        Integer combinedHash = hash(vector);
+        if (!hashTable.containsKey(combinedHash)) {
+            hashTable.put(combinedHash, new ArrayList<>());
+        }
+
+        hashTable.get(combinedHash).add(vector);
+        vector.hashValues[idx] = combinedHash;
     }
 
     /**
@@ -126,8 +178,7 @@ class HashTable implements Serializable {
     void remove(Vector vector) {
         Integer combinedHash = hash(vector);
         if (hashTable.containsKey(combinedHash)) {
-           
-            
+
             hashTable.get(combinedHash).remove(vector);
         }
     }

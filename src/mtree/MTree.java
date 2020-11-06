@@ -3,7 +3,6 @@ package mtree;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -11,8 +10,6 @@ import java.util.PriorityQueue;
 import java.util.Set;
 
 import mtree.SplitFunction.SplitResult;
-import mtree.utils.Pair;
-import outlierdetection.DoubleMTree;
 
 
 /**
@@ -127,7 +124,6 @@ public class MTree<DATA> {
 					return;
 				}
 				
-                                DoubleMTree.distanceCallInQuery++;
 				double distance = MTree.this.distanceFunction.calculate(Query.this.data, MTree.this.root.data);
 				double minDistance = Math.max(distance - MTree.this.root.radius, 0.0);
 				
@@ -192,7 +188,6 @@ public class MTree<DATA> {
 					for(IndexItem child : node.children.values()) {
 						if(Math.abs(pending.distance - child.distanceToParent) - child.radius <= Query.this.range) {
                                                     
-                                                        DoubleMTree.distanceCallInQuery++;
 							double childDistance = MTree.this.distanceFunction.calculate(Query.this.data, child.data);
 							double childMinDistance = Math.max(childDistance - child.radius, 0.0);
 							if(childMinDistance <= Query.this.range) {

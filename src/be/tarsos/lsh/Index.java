@@ -62,7 +62,7 @@ public class Index implements Serializable {
     private final static Logger LOG = Logger.getLogger(Index.class.getName());
 
     private HashFamily family;
-    private List<HashTable> hashTable;
+    public List<HashTable> hashTable;
     private int evaluated;
 
     /**
@@ -92,9 +92,23 @@ public class Index implements Serializable {
      * @param vector The vector to add.
      */
     public void index(Vector vector) {
-        for (HashTable table : hashTable) {
-            table.add(vector);
+        vector.hashValues = new Integer[hashTable.size()];
+        for (int i = 0; i < hashTable.size(); i++) {
+            hashTable.get(i).add(vector, i);
         }
+//        for (HashTable table : hashTable) {
+//            table.add(vector);
+//        }
+    }
+
+    public List<Vector> getAllData() {
+        ArrayList<Vector> results = new ArrayList<>();
+        hashTable.forEach((table) -> {
+            table.hashTable.values().forEach((r) -> {
+                results.addAll(r);
+            });
+        });
+        return results;
     }
 
     /**
@@ -128,43 +142,19 @@ public class Index implements Serializable {
      * lays between zero and a chosen maximum.
      */
     public List<Vector> query(final Vector query, int maxSize) {
-        Set<Vector> candidateSet = new HashSet<Vector>();
-        for (HashTable table : hashTable) {
-            List<Vector> v = table.query(query);
-            candidateSet.addAll(v);
-        }
-        List<Vector> candidates = new ArrayList<Vector>(candidateSet);
-        evaluated += candidates.size();
-        DistanceMeasure measure = family.createDistanceMeasure();
-        DistanceComparator dc = new DistanceComparator(query, measure);
-//		Collections.sort(candidates,dc);
-//                
-//                
-//		if(candidates.size() > maxSize){
-//			candidates = candidates.subList(0, maxSize);
-//		}
+        List<Vector> candidates = new ArrayList<>();
 
-        //luan add
-        int count = 0;
-//                for(Vector v: candidates){
-//                    if(measure.distance(query, v) <= Constants.R)
-//                        count++;
-//                }
-
-        List<Vector> result = new ArrayList<>();
-        for (Vector v : candidates) {
-            if (measure.distance(query, v) <= Constants.R) {
-                result.add(v);
-                count++;
-            }
-            if (count == Constants.k) {
-                break;
-            }
+        for (int i = 0; i < hashTable.size(); i++) {
+            List<Vector> v = hashTable.get(i).query(query.hashValues[i]);
+            candidates.addAll(v);
         }
-//                System.out.println("Count = "+count);
-        //
-        return result;
-//		return candidates;
+//        for (HashTable table : hashTable) {
+//            List<Vector> v = table.query(query);
+//            candidateSet.addAll(v);
+//        }
+//        List<Vector> candidates = new ArrayList<>(candidateSet);
+//        System.out.println("Candidate size = " + candidates.size());
+        return candidates;
     }
 
     /**

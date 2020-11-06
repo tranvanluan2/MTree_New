@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Set;
 
 import mtree.utils.Pair;
-import outlierdetection.DoubleMTree;
 
 /**
  * Some pre-defined implementations of {@linkplain PartitionFunction partition
@@ -62,7 +61,6 @@ public final class PartitionFunctions {
 			Collections.sort(queue1, new Comparator<DATA>() {
 				@Override
 				public int compare(DATA data1, DATA data2) {
-                                        DoubleMTree.numCalculationInCompare +=2;
 					double distance1 = distanceFunction.calculate(data1, promoted.first);
 					double distance2 = distanceFunction.calculate(data2, promoted.first);
 					return Double.compare(distance1, distance2);
@@ -74,7 +72,6 @@ public final class PartitionFunctions {
 			Collections.sort(queue2, new Comparator<DATA>() {
 				@Override
 				public int compare(DATA data1, DATA data2) {
-                                         DoubleMTree.numCalculationInCompare +=2;
 					double distance1 = distanceFunction.calculate(data1, promoted.second);
 					double distance2 = distanceFunction.calculate(data2, promoted.second);
 					return Double.compare(distance1, distance2);
